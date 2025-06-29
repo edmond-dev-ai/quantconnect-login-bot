@@ -1,14 +1,10 @@
 # This name will appear in the "Actions" tab of your GitHub repository.
 name: QuantConnect Auto Login
 
-# --- Trigger Conditions ---
 on:
-  # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
-
   # The schedule is currently commented out. 
   # Uncomment the following lines to enable automatic daily runs.
-  # The cron expression '0 8,20 * * *' runs the job at 8:00 AM and 8:00 PM UTC.
   # schedule:
   #   - cron: '0 8,20 * * *'
 
@@ -46,11 +42,32 @@ jobs:
 
       # --- Step 5: Execute the login script ---
       # This is the core step. It runs our Python script.
+      # 'continue-on-error: true' allows the workflow to proceed to the
+      # upload step even if the python script fails (exits with code 1).
       - name: Run QuantConnect Login Script
+        id: login_step
+        continue-on-error: true
         env:
-          # This is where the magic happens. We securely pass the GitHub secrets
+          # This is where we securely pass the GitHub secrets
           # as environment variables to our Python script.
           QC_EMAIL: ${{ secrets.QC_EMAIL }}
           QC_PASSWORD: ${{ secrets.QC_PASSWORD }}
         run: python quantconnect_login.py
 
+      # --- Step 6: Upload Login Failure Screenshot (NEW) ---
+      # This step will only run if the previous step (our script) failed.
+      - name: Upload Login Failure Screenshot
+        if: steps.login_step.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-failure-screenshot
+          # The path to the file that the python script creates on failure.
+          path: login_failure_screenshot.png
+          retention-days: 5 # Keeps the artifact for 5 days
+
+      # --- Step 7: Check script outcome ---
+      # This final step ensures the entire job is marked as failed in the UI
+      # if our script did not succeed.
+      - name: Check script outcome
+        if: steps.login_step.outcome == 'failure'
+        run: exit 1
