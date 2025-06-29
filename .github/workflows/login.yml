@@ -1,0 +1,56 @@
+# This name will appear in the "Actions" tab of your GitHub repository.
+name: QuantConnect Auto Login
+
+# --- Trigger Conditions ---
+on:
+  # Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
+  # The schedule is currently commented out. 
+  # Uncomment the following lines to enable automatic daily runs.
+  # The cron expression '0 8,20 * * *' runs the job at 8:00 AM and 8:00 PM UTC.
+  # schedule:
+  #   - cron: '0 8,20 * * *'
+
+# --- Job Definition ---
+jobs:
+  # A single job in this workflow, named "login".
+  login:
+    # The type of runner that the job will run on. Ubuntu is a standard choice.
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- Step 1: Check out your repository code ---
+      # This action checks-out your repository under $GITHUB_WORKSPACE,
+      # so your job can access your quantconnect_login.py script.
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # --- Step 2: Set up Python environment ---
+      # This action sets up a Python 3.9 environment for us to use.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      # --- Step 3: Install Python dependencies ---
+      # We install Playwright, the library our script uses for browser automation.
+      - name: Install Playwright
+        run: pip install playwright
+
+      # --- Step 4: Install browser binaries ---
+      # Playwright needs the actual browser binaries (like Chromium) to work.
+      # This command downloads and installs them inside the runner environment.
+      - name: Install Playwright browsers
+        run: python -m playwright install --with-deps
+
+      # --- Step 5: Execute the login script ---
+      # This is the core step. It runs our Python script.
+      - name: Run QuantConnect Login Script
+        env:
+          # This is where the magic happens. We securely pass the GitHub secrets
+          # as environment variables to our Python script.
+          QC_EMAIL: ${{ secrets.QC_EMAIL }}
+          QC_PASSWORD: ${{ secrets.QC_PASSWORD }}
+        run: python quantconnect_login.py
+
