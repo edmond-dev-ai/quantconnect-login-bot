@@ -2,11 +2,11 @@ import os
 import sys
 import time
 from playwright.sync_api import sync_playwright, TimeoutError
-from playwright_stealth import stealth_sync
+# The import is now for the 'sync_stealth' function
+from playwright_stealth import sync_stealth
 
 # --- Configuration ---
 LOGIN_URL = "https://www.quantconnect.com/login"
-# The URL we expect to land on after a successful login.
 DASHBOARD_URL = "https://www.quantconnect.com/dashboard"
 SCREENSHOT_FILENAME = "login_failure_screenshot.png"
 
@@ -14,7 +14,7 @@ def main():
     """
     Main function to orchestrate the login process using a stealth browser.
     """
-    print("--- QuantConnect Auto-Login Script Started (v4 - Stealth Mode) ---")
+    print("--- QuantConnect Auto-Login Script Started (v5 - Corrected Stealth) ---")
 
     email = os.getenv("QC_EMAIL")
     password = os.getenv("QC_PASSWORD")
@@ -26,11 +26,13 @@ def main():
     print("✅ Credentials successfully loaded.")
 
     with sync_playwright() as p:
-        # --- THIS IS THE KEY CHANGE ---
-        # We are launching a "stealth" version of the browser.
-        # This applies patches to evade detection.
-        browser = stealth_sync(p.chromium).launch(headless=True)
+        browser = p.chromium.launch(headless=True)
         page = browser.new_page()
+        
+        # --- THIS IS THE CORRECTED STEALTH IMPLEMENTATION ---
+        # We apply the stealth patches to the page object itself.
+        sync_stealth(page, languages=["en-US", "en"])
+        # --- END OF CORRECTION ---
 
         try:
             print(f"Navigating to login page: {LOGIN_URL}")
@@ -46,16 +48,13 @@ def main():
             print("Entering password...")
             page.locator('input[name="password"]').press_sequentially(password, delay=100)
             
-            time.sleep(1) # Final pause
+            time.sleep(1) 
 
             print("Clicking the 'Sign In' button...")
             page.locator("//button[normalize-space()='Sign In']").click()
             
-            # --- NEW VERIFICATION METHOD ---
-            # Instead of looking for an element, we wait for the URL to change.
-            # This is often more reliable against sites that dynamically load content.
             print(f"Verifying login by waiting for URL to become '{DASHBOARD_URL}'...")
-            page.wait_for_url(f"{DASHBOARD_URL}**", timeout=30000) # The ** is a wildcard
+            page.wait_for_url(f"{DASHBOARD_URL}**", timeout=30000) 
             
             print(f"Login successful. Current URL: {page.url}")
             print("\n✅✅✅ Login Successful! Verification complete.")
